@@ -18,7 +18,7 @@ for i in range(n_cells):
 
 height,width,layers=images[0].shape
 
-video=cv2.VideoWriter('video.avi',-1,1,(width,height))
+video=cv2.VideoWriter('video.avi',cv2.VideoWriter_fourcc(*'XVID'), 6, (width,height))
 
 for j in range(n_cells):
     video.write(images[j])

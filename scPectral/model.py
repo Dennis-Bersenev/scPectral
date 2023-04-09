@@ -1,11 +1,24 @@
 import numpy as np
 from copy import deepcopy
+import pandas as pd
+import glob
+import utils
 
 class HyperGraph:
-    def __init__(self, n_cells, n_genes):
+    def __init__(self, n_cells, n_genes, infile_dir):
         self.n_cells = n_cells
         self.m_genes = n_genes
-    
+
+        PWgraph = np.zeros((n_cells, n_genes, n_genes))
+        self.gene_labels = utils.load_pickle(glob.glob(infile_dir + "*.pickle")[0])
+        
+        for i in range(n_cells):
+            file = glob.glob(infile_dir + "*gene{i}.csv".format(i=(i+1)))[0]
+            df_temp = pd.read_csv(file)
+            PWgraph[i, :, :] = np.copy(df_temp.values)
+
+        self.PWgraph = PWgraph    
+
     """ 
     Creates a hypergraph, represented using an incidence matrix, from the given cell's PW gene network. 
     cell_index: the index into the PWscores array for the desired cell.
@@ -15,7 +28,7 @@ class HyperGraph:
     def construct_hyper_graph(self, cell_index, p):
         # init
         unique_genes = set()
-        cell_nw = PWscores[cell_index, :, :]
+        cell_nw = self.PWgraph[cell_index, :, :]
 
         # The incidence matrix (TODO: might use different data structures for B and W?)
         B = []
@@ -28,9 +41,6 @@ class HyperGraph:
 
         tails = set(np.arange(start=0, stop=self.n_genes, step=1))
 
-        # debug var
-        count = 0
-
         while (len(tails) > 0):
             edges = []
             new_tails = set()
@@ -41,9 +51,6 @@ class HyperGraph:
                 
                 # Termination condition: once there's no new heads added this never gets hit, no new tails get added and the tail set becomes null at the end of while itr
                 if (len(heads) > 0) and (heads.isdisjoint(unique_genes)):
-                    
-                    count += 1
-                    
                     for head in heads:
                         # error handling
                         if (cell_nw[tail, head] <= tolerance):
@@ -51,8 +58,6 @@ class HyperGraph:
 
                         # update the next-level tails
                         new_tails.add(head)
-                        
-                        # TODO: maybe make the set of all heads for this level here and wait till the end of the iteration to deep copy it over?
                         heads_to_remember.add(head)
                         
                     # update the edge set for this hgraph level
@@ -151,6 +156,7 @@ class HyperGraph:
     def prune_graph(self):
         count = 0
         to_prune = []
+        gene_labels = df_temp.columns.to_numpy()
 
         for v in range(self.n_genes):
             indices = np.where(self.H[v,:] != 0)

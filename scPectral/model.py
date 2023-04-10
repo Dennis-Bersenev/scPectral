@@ -219,3 +219,21 @@ class HyperGraph:
     
     def get_Laplacian(self):
         return self.L
+    
+    """
+    Returns the sorted eigenvalues and eigenvectors of the incidence matrix representing this Hypergraph
+    """
+    def get_sorted_eigens(self):
+        eigvals, eigvecs = np.linalg.eig(self.L)
+        # sort eigenvals, then sort eigenvecs by the eigenvals
+        sorted_indices = np.flip(np.argsort(eigvals))
+        sorted_eigvals = eigvals[sorted_indices] # sort the vals
+        sorted_eigvecs = eigvecs[:,sorted_indices] # sorts the columns
+
+        # Sanity check to ensure eigenvecs got sorted
+        eps = 0.0001
+        min_index = np.argmin(eigvals)
+        if (np.sum(np.abs(np.abs(eigvecs[:,min_index]) - np.abs(sorted_eigvecs[:,self.n_genes - 1])) < eps) != self.n_genes):
+            raise ValueError("Incorrectly sorted eigenvalues")
+        
+        return sorted_eigvals, sorted_eigvecs

@@ -7,7 +7,7 @@ import utils
 class HyperGraph:
     def __init__(self, n_cells, n_genes, infile_dir):
         self.n_cells = n_cells
-        self.m_genes = n_genes
+        self.n_genes = n_genes
 
         PWgraph = np.zeros((n_cells, n_genes, n_genes))
         self.gene_labels = utils.load_pickle(glob.glob(infile_dir + "*.pickle")[0])
@@ -19,69 +19,12 @@ class HyperGraph:
 
         self.PWgraph = PWgraph    
 
-    """ 
-    Creates a hypergraph, represented using an incidence matrix, from the given cell's PW gene network. 
-    cell_index: the index into the PWscores array for the desired cell.
-    p: percentage parameter to use in tolerance calculation; decides which relationships relative to the maximum PW TE. 
-    returns: B the incidence matrix of the constructed hypergraph. 
-    """
-    def construct_hyper_graph(self, cell_index, p):
-        # init
-        unique_genes = set()
-        cell_nw = self.PWgraph[cell_index, :, :]
-
-        # The incidence matrix (TODO: might use different data structures for B and W?)
-        B = []
-
-        # The weight matrix
-        W = []
-
-        # all scores within whatever % of the max
-        tolerance = np.max(cell_nw) * p
-
-        tails = set(np.arange(start=0, stop=self.n_genes, step=1))
-
-        while (len(tails) > 0):
-            edges = []
-            new_tails = set()
-            heads_to_remember = set()
-
-            for tail in tails:
-                heads = set(np.flatnonzero(cell_nw[tail, :] > tolerance))
-                
-                # Termination condition: once there's no new heads added this never gets hit, no new tails get added and the tail set becomes null at the end of while itr
-                if (len(heads) > 0) and (heads.isdisjoint(unique_genes)):
-                    for head in heads:
-                        # error handling
-                        if (cell_nw[tail, head] <= tolerance):
-                            raise ValueError("Improper pair discovered.")
-
-                        # update the next-level tails
-                        new_tails.add(head)
-                        heads_to_remember.add(head)
-                        
-                    # update the edge set for this hgraph level
-                    tail_as_set = set()
-                    tail_as_set.add(tail)
-                    edges.append([tail_as_set, heads])
-            
-            for h in heads_to_remember:
-                unique_genes.add(h)
-
-            self.merge_edges(edges, B, W, cell_nw)
-            tails = set(deepcopy(new_tails))
-        
-        return B, W
-
-
-
-
     """
     Merges tails with common heads to identify all the multi-arity relations to represent as hedges and updates the supplied incidence matrix with these final hedges.
     _edges: a list of tuples (tail_set, head_set) of all the initial single-tailed edges (note: they are sets, not lists!)
     B: a list of n_gene-sized integer numpy arrays to represent the incidence matrix to update.
     """
-    def merge_edges(self, _edges, B, W, cell_nw):
+    def __merge_edges(self, _edges, B, W, cell_nw):
         
         # init
         edges = deepcopy(_edges)
@@ -127,6 +70,62 @@ class HyperGraph:
             m = len(edges)
 
 
+    """ 
+    Build an incidence matrix to represent the hyperedges found within the given cell's pairwise network. 
+    cell_index: the index into the PWscores array for the desired cell.
+    p: percentage parameter to use in tolerance calculation; decides which relationships relative to the maximum PW TE. 
+    returns: B the incidence matrix of the constructed hypergraph. 
+    """
+    def __extract_hyper_edges(self, cell_index, p):
+        # init
+        unique_genes = set()
+        cell_nw = self.PWgraph[cell_index, :, :]
+
+        # The incidence matrix (TODO: might use different data structures for B and W?)
+        B = []
+
+        # The weight matrix
+        W = []
+
+        # all scores within whatever % of the max
+        tolerance = np.max(cell_nw) * p
+
+        tails = set(np.arange(start=0, stop=self.n_genes, step=1))
+
+        while (len(tails) > 0):
+            edges = []
+            new_tails = set()
+            heads_to_remember = set()
+
+            for tail in tails:
+                heads = set(np.flatnonzero(cell_nw[tail, :] > tolerance))
+                
+                # Termination condition: once there's no new heads added this never gets hit, no new tails get added and the tail set becomes null at the end of while itr
+                if (len(heads) > 0) and (heads.isdisjoint(unique_genes)):
+                    for head in heads:
+                        # error handling
+                        if (cell_nw[tail, head] <= tolerance):
+                            raise ValueError("Improper pair discovered.")
+
+                        # update the next-level tails
+                        new_tails.add(head)
+                        heads_to_remember.add(head)
+                        
+                    # update the edge set for this hgraph level
+                    tail_as_set = set()
+                    tail_as_set.add(tail)
+                    edges.append([tail_as_set, heads])
+            
+            for h in heads_to_remember:
+                unique_genes.add(h)
+
+            self.__merge_edges(edges, B, W, cell_nw)
+            tails = set(deepcopy(new_tails))
+        
+        return B, W
+    
+    
+    
     """
     Builds the hyper graph using the given tolerance as the metric by which to prune Transfer Entropy edges.
     
@@ -136,7 +135,7 @@ class HyperGraph:
         hyper_edges = []
         weights = []
         for i in range(self.n_cells):
-            G, W = self.construct_hyper_graph(i, tolerance)
+            G, W = self.__extract_hyper_edges(i, tolerance)
             if (len(G) > 0):
                 hyper_edges.append(np.transpose(np.array(G)))
                 weights.append(np.array(W)) 
@@ -146,6 +145,7 @@ class HyperGraph:
         if (np.sum(np.where(W < 0))):
             raise ValueError("Negative edge weights are not allowed.")
 
+        self.hedges = hyper_edges
         self.W = W
         self.H = H
 
@@ -156,7 +156,6 @@ class HyperGraph:
     def prune_graph(self):
         count = 0
         to_prune = []
-        gene_labels = df_temp.columns.to_numpy()
 
         for v in range(self.n_genes):
             indices = np.where(self.H[v,:] != 0)
@@ -168,17 +167,18 @@ class HyperGraph:
 
         self.n_genes = self.n_genes - count
 
-        pruned_labels = np.delete(gene_labels, to_prune)
+        pruned_labels = np.delete(self.gene_labels, to_prune)
         pruned_H = np.delete(self.H, to_prune, axis=0) # delete rows with indices in to_prune
 
         # Checking it did its job
-        if np.intersect1d(pruned_labels, gene_labels[to_prune]).shape[0] != 0:
+        if np.intersect1d(pruned_labels, self.gene_labels[to_prune]).shape[0] != 0:
             raise ValueError("Pruning of background genes failed.")
 
         if (pruned_H.shape[1] != self.H.shape[1]):
             raise ValueError("Bug in pruning, edges were deleted.")
         
         self.H = pruned_H
+        self.gene_labels = pruned_labels
 
     """
     Sets the (normalized) graph Laplacian and associated degree matrices for this instance.
@@ -216,3 +216,6 @@ class HyperGraph:
     
     def get_hedge_weights(self):
         return self.W
+    
+    def get_Laplacian(self):
+        return self.L

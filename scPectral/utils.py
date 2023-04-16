@@ -2,6 +2,7 @@ import pickle
 import hypernetx as hnx
 import numpy as np
 from sklearn.cluster import KMeans
+import csv
 
 """
 Load in a pickled object. 
@@ -29,8 +30,7 @@ def get_unweighted_graph(H):
 
 
 def get_clusters(k: int, sorted_eigvecs, gene_labels, min_cluster_size):
-    k = 2
-    skip = 0 # Ng et al don't skip anything
+    skip = 0 
     kmeans = KMeans(n_clusters=k)
     Y = sorted_eigvecs[:, skip:(k + skip)]
     kmeans.fit(Y)
@@ -42,3 +42,12 @@ def get_clusters(k: int, sorted_eigvecs, gene_labels, min_cluster_size):
             clusters.append(gene_labels[genes])
     
     return clusters
+
+def write_results(data, outfile:str):
+    try:
+        with open(outfile, 'w', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            for key, val in data.items():
+                writer.writerow(val)
+    except IOError:
+        print("I/O error")

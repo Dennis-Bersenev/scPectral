@@ -3,11 +3,14 @@ from copy import deepcopy
 import pandas as pd
 import glob
 import utils
+import hypernetx as hnx
 
 class HyperGraph:
     def __init__(self, n_cells, n_genes, infile_dir):
         self.n_cells = n_cells
         self.n_genes = n_genes
+        self.HG = hnx.Hypergraph()
+        self.edge_hash = 0
 
         PWgraph = np.zeros((n_cells, n_genes, n_genes))
         self.gene_labels = utils.load_pickle(glob.glob(infile_dir + "*.pickle")[0])
@@ -65,6 +68,13 @@ class HyperGraph:
                     B.append(np.copy(col))
                     # add edge weight to edge matrix
                     W.append(w)
+                    
+                    # TODO: Comparison with what hnx produces
+                    elt_indices = np.argwhere(col > 0).flatten()
+                    elts = self.gene_labels[elt_indices].tolist()
+                    hnx_edge = hnx.Entity('e{i}'.format(i = self.edge_hash), elements=elts, weight=w)
+                    self.edge_hash += 1
+                    self.HG.add_edge(hnx_edge)
             
             edges = deepcopy(new_edges)
             m = len(edges)

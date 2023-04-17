@@ -6,14 +6,14 @@ import utils
 import hypernetx as hnx
 
 class HyperGraph:
-    def __init__(self, n_cells, n_genes, infile_dir):
+    def __init__(self, n_cells, n_genes, infile_dir, gene_labels):
         self.n_cells = n_cells
         self.n_genes = n_genes
         self.HG = hnx.Hypergraph()
         self.edge_hash = 0
 
         PWgraph = np.zeros((n_cells, n_genes, n_genes))
-        self.gene_labels = utils.load_pickle(glob.glob(infile_dir + "*.pickle")[0])
+        self.gene_labels = gene_labels
         
         for i in range(n_cells):
             file = glob.glob(infile_dir + "*gene{i}.csv".format(i=(i+1)))[0]

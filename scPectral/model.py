@@ -69,7 +69,6 @@ class HyperGraph:
                     # add edge weight to edge matrix
                     W.append(w)
                     
-                    # TODO: Comparison with what hnx produces
                     elt_indices = np.argwhere(col > 0).flatten()
                     elts = self.gene_labels[elt_indices].tolist()
                     hnx_edge = hnx.Entity('e{i}'.format(i = self.edge_hash), elements=elts, weight=w)
@@ -91,7 +90,6 @@ class HyperGraph:
         unique_genes = set()
         cell_nw = self.PWgraph[cell_index, :, :]
 
-        # The incidence matrix (TODO: might use different data structures for B and W?)
         B = []
 
         # The weight matrix

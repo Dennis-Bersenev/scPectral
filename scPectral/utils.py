@@ -21,7 +21,6 @@ def visualize_hyperedge_set(model):
 
 """
 Constructs unweighted hypergraph from a vertex x edge incidence matrix H, collapses common edges, and returns the compressed result.
-TODO: weight the graph and combine rather than collapse the edges 
 """
 def get_unweighted_graph(H):
     HG = hnx.classes.Hypergraph.from_numpy_array(M = H)

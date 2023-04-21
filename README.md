@@ -1,6 +1,15 @@
 # scPectral
 A tool for automated discovery of developmental pathways.<br>
 <pre>
+Environment setup:
+    conda create -n scPectral python=3.7.16
+    conda activate scPectral
+    pip install hypernetx==1.2.5
+    conda install -c anaconda ipykernel==6.15.2
+    conda install -c anaconda scikit-learn==1.0.2
+</pre>
+
+<pre>
 Analysis of mouse embryonic stem cells (mESCs) <sup>1</sup> in mESCsResult notebook.
 Analysis of murine hematapoietic stem and progenitor cells (HSPCs)<sup>2</sup> in HSPCsResult notebook. 
 
